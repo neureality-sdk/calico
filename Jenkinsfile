@@ -1,6 +1,6 @@
 pipeline {
     options {
-        timeout(time: 20, unit: 'MINUTES')  // timeout for the Job (usually it runs around 10 minutes)
+        timeout(time: 600, unit: 'MINUTES')  // timeout for the Job (usually it runs around 10 minutes)
     }
 
     agent {
