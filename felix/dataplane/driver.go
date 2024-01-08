@@ -70,6 +70,9 @@ func StartDataplaneDriver(configParams *config.Config,
 		return &inactive.InactiveDataplane{}, nil
 	}
 
+	var primaryDataplaneDriver DataplaneDriver
+	var cmd *exec.Cmd
+	
 	if configParams.UseInternalDataplaneDriver {
 		log.Info("Using internal (linux) dataplane driver.")
 		// If kube ipvs interface is present, enable ipvs support.  In BPF mode, we bypass kube-proxy so IPVS
@@ -406,13 +409,26 @@ func StartDataplaneDriver(configParams *config.Config,
 			go aws.WaitForEC2SrcDstCheckUpdate(check, healthAggregator, updater, c)
 		}
 
-		return intDP, nil
+		primaryDataplaneDriver = intDP
+		cmd = nil
 	} else {
 		log.WithField("driver", configParams.DataplaneDriver).Info(
 			"Using external dataplane driver.")
-
+			
 		return extdataplane.StartExtDataplaneDriver(configParams.DataplaneDriver)
 	}
+	
+	if configParams.SecondaryDataplaneDriver != "" {
+	    	log.WithField("driver", configParams.SecondaryDataplaneDriver).Info(
+			"Using secondary dataplane driver.")
+
+		secondaryDataplaneDriver, secondaryCmd := extdataplane.StartExtDataplaneDriver(configParams.SecondaryDataplaneDriver)
+
+		// here we assume that external dataplane driver is not used as the primary dataplane
+		return dataplaneDriverDecorator{ primaryDriver: primaryDataplaneDriver, secondaryDriver: secondaryDataplaneDriver}, secondaryCmd
+	}
+	
+	return primaryDataplaneDriver, cmd
 }
 
 func SupportsBPF() error {
