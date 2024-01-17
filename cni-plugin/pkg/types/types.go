@@ -103,6 +103,7 @@ type NetConf struct {
 	ContainerSettings    ContainerSettings      `json:"container_settings,omitempty"`
 	IncludeDefaultRoutes bool                   `json:"include_default_routes,omitempty"`
 	DataplaneOptions     map[string]interface{} `json:"dataplane_options,omitempty"`
+	SecondaryDataplaneOptions     map[string]interface{} `json:"secondary_dataplane_options,omitempty"`
 
 	// Windows-specific configuration.
 	// WindowsPodDeletionTimestampTimeout defines number of seconds before a pod deletion timestamp timeout and
