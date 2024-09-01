@@ -1,5 +1,6 @@
 // Copyright 2020 Cisco Systems Inc
 // Copyright (c) 2020-2024 Tigera, Inc. All rights reserved.
+// Copyright (c) 2024 NeuReality, Ltd. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,14 +51,14 @@ func init() {
 	resolver.SetDefaultScheme("passthrough")
 }
 
-func NewGrpcDataplane(conf types.NetConf, logger *logrus.Entry) (*grpcDataplane, error) {
-	socket, ok := conf.DataplaneOptions["socket"].(string)
+func NewGrpcDataplane(conf types.NetConf, dataplaneOptions map[string]interface{}, logger *logrus.Entry) (*grpcDataplane, error) {
+	socket, ok := dataplaneOptions["socket"].(string)
 	if !ok {
 		return nil, fmt.Errorf("GRPC dataplane socket not configured")
 	}
 
 	userOpts := make(map[string]string)
-	for k, v := range conf.DataplaneOptions {
+	for k, v := range dataplaneOptions {
 		str, ok := v.(string)
 		if ok {
 			userOpts[k] = str
