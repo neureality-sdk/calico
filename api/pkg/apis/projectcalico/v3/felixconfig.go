@@ -111,6 +111,9 @@ type FelixConfigurationSpec struct {
 	// is set to false.
 	DataplaneDriver string `json:"dataplaneDriver,omitempty"`
 
+	// SecondaryDataplaneDriver filename of the external secondary dataplane driver to use.
+	SecondaryDataplaneDriver string `json:"secondaryDataplaneDriver,omitempty"`
+
 	// DataplaneWatchdogTimeout is the readiness/liveness timeout used for Felix's (internal) dataplane driver.
 	// Increase this value if you experience spurious non-ready or non-live events when Felix is under heavy load.
 	// Decrease the value to get felix to report non-live or non-ready more quickly. [Default: 90s]
