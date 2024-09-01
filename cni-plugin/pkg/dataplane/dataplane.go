@@ -47,14 +47,37 @@ type Dataplane interface {
 }
 
 func GetDataplane(conf types.NetConf, logger *logrus.Entry) (Dataplane, error) {
-	name, ok := conf.DataplaneOptions["type"]
-	if !ok {
-		return getDefaultSystemDataplane(conf, logger)
+        logger.Infof("Handling primary dataplane with options %v", conf.DataplaneOptions)
+        primary, err := getDataplaneByDataplaneOptions(conf, conf.DataplaneOptions, logger)
+
+	if err != nil {
+	    return nil, fmt.Errorf("unable to get primary dataplane: %w", err)
 	}
-	switch name {
-	case "grpc":
-		return grpc.NewGrpcDataplane(conf, logger)
-	default:
-		return nil, fmt.Errorf("Invalid dataplane type: %s", name)
+
+	if len(conf.SecondaryDataplaneOptions) == 0 {
+	    return primary, nil
 	}
+
+	logger.Infof("Handling secondary dataplane with options %v", conf.SecondaryDataplaneOptions)
+	secondary, err := getDataplaneByDataplaneOptions(conf, conf.SecondaryDataplaneOptions, logger)
+
+	if err != nil {
+	    return nil, fmt.Errorf("unable to get secondary dataplane: %w", err)
+	}
+
+	return decorator{primary: primary, secondary: secondary}, nil
+}
+
+func getDataplaneByDataplaneOptions(conf types.NetConf, options map[string]interface{}, logger *logrus.Entry) (Dataplane, error) {
+        name, ok := options["type"]
+        if !ok {
+                return getDefaultSystemDataplane(conf, logger)
+        }
+
+        switch name {
+        case "grpc":
+                return grpc.NewGrpcDataplane(conf, options, logger)
+        default:
+                return nil, fmt.Errorf("Invalid dataplane type: %s", name)
+        }
 }
