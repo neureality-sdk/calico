@@ -156,6 +156,7 @@ type Config struct {
 	// Configuration parameters.
 	UseInternalDataplaneDriver bool          `config:"bool;true"`
 	DataplaneDriver            string        `config:"file(must-exist,executable);calico-iptables-plugin;non-zero,die-on-fail,skip-default-validation"`
+	SecondaryDataplaneDriver   string        `config:"file(must-exist,executable);;die-on-fail,skip-default-validation"`
 	DataplaneWatchdogTimeout   time.Duration `config:"seconds;90"`
 
 	// Wireguard configuration
