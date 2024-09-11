@@ -1,0 +1,120 @@
+name: PR to Branch CI
+
+on:
+  pull_request:
+    branches:
+      - add_secondary_dataplane_driver
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        docker_image:
+          - [node, calico-forked]
+          - [cni-plugin, calico-cni-plugin-forked]
+
+    env:
+      TARGETARCH: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image variables
+        run: |
+          REPO="${{ github.repository }}"
+          GIT_COMMIT_HASH_SHORT=$(git rev-parse --short ${{ github.sha }})
+          CURRENT_DATE=$(date +'%y%m%d')
+          PR_NUMBER="pr-${{ github.event.number }}"
+          echo "ARTIFACT_VERSION=${CURRENT_DATE}.${PR_NUMBER}.${GIT_COMMIT_HASH_SHORT}" >> $GITHUB_ENV
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          echo "IMAGE_NAME=ghcr.io/${REPO%/*}/${REPO#*/}/${{ matrix.docker_image[1] }}" >> $GITHUB_ENV
+          echo "REPO_OWNER=${REPO%/*}" >> $GITHUB_ENV
+          echo "REPO_NAME=${REPO#*/}" >> $GITHUB_ENV
+
+      - name: Print artifact version
+        run: echo "Artifact version is ${{ env.ARTIFACT_VERSION }}"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.3.0
+
+      - name: Build Docker image
+        run: |
+          make -C ${{ matrix.docker_image[0] }} image ARCH=${{ env.TARGETARCH }}
+
+      - name: Tag Docker image
+        run: |
+          docker tag cni:latest-arm64 ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
+
+      - name: Security Scan
+        id: trivy-scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
+          output: 'scan-report.txt'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+        env:
+          TRIVY_PLATFORM: linux/${{ env.TARGETARCH }}
+
+      - name: Publish Trivy Output to Summary
+        if: always()
+        run: |
+          if [[ -s scan-report.txt ]]; then
+            {
+              echo "<h2>Security Output</h2>"
+              if [[ "${{ steps.trivy-scan.outcome }}" != "success" ]]; then
+                echo "<details><summary>:x: <strong>Issues found.</strong> Click to expand...</summary>"
+              else
+                echo "<details><summary>:information_source: Click to expand...</summary>"
+              fi
+              echo ""
+              echo '```'
+              cat scan-report.txt
+              echo '```'
+              echo "</details>"
+            } >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Delete existing image with PR tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSIONS_PATH="/orgs/${{ env.REPO_OWNER }}/packages/container/${{ env.REPO_NAME }}%2F${{ matrix.docker_image[1] }}/versions"
+          IMAGES_TO_DELETE=$(gh api --method GET -H "Accept: application/vnd.github.v3+json" $VERSIONS_PATH | jq -r '.[] | select(.metadata.container.tags[] | contains("'${{ env.PR_NUMBER }}'")) | .id')
+          for image_id in $IMAGES_TO_DELETE; do
+            gh api --method DELETE -H "Accept: application/vnd.github.v3+json" ${VERSIONS_PATH}/${image_id}
+          done
+
+          VERSIONS_PATH="/orgs/${{ env.REPO_OWNER }}/packages/container/${{ env.REPO_NAME }}%2F${{ matrix.docker_image[1] }}/versions"
+          RESPONSE=$(gh api --method GET -H "Accept: application/vnd.github.v3+json" $VERSIONS_PATH || echo "not_found")
+          if [[ "$RESPONSE" != "not_found" && -n "$RESPONSE" ]]; then
+            IMAGES_TO_DELETE=$(echo "$RESPONSE" | jq -r '.[] | select(.metadata.container.tags[] | contains("'${{ env.PR_NUMBER }}'")) | .id')
+            if [[ -n "$IMAGES_TO_DELETE" ]]; then
+              for image_id in $IMAGES_TO_DELETE; do
+                gh api --method DELETE -H "Accept: application/vnd.github.v3+json" ${VERSIONS_PATH}/${image_id}
+              done
+            else
+              echo "No images found with PR tag."
+            fi
+          else
+            echo "No versions found or the path does not exist."
+          fi
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
