@@ -60,7 +60,7 @@ jobs:
           image-ref: ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
           output: 'scan-report.txt'
           severity: 'HIGH,CRITICAL'
-          exit-code: '0'
+          exit-code: '1'
         env:
           TRIVY_PLATFORM: linux/${{ env.TARGETARCH }}
 
@@ -117,6 +117,7 @@ jobs:
 
           if [[ -n "$IMAGES_TO_DELETE" ]]; then
             for image_id in $IMAGES_TO_DELETE; do
+              echo "Removing older images with PR tag."
               gh api --method DELETE -H "Accept: application/vnd.github.v3+json" ${VERSIONS_PATH}/${image_id}
             done
           else
