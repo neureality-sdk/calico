@@ -88,8 +88,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSIONS_PATH="/orgs/${{ env.REPO_OWNER }}/packages/container/${{ matrix.docker_image[2] }}/versions"
-          RESPONSE=$(gh api --method GET -H "Accept: application/vnd.github.v3+json" $VERSIONS_PATH || echo "not_found")
-          if [[ "$RESPONSE" != "not_found" && -n "$RESPONSE" ]]; then
+          RESPONSE=$(gh api --method GET -H "Accept: application/vnd.github.v3+json" $VERSIONS_PATH 2>/dev/null)
+          if [ $? -ne 0 ] || [ -z "$RESPONSE" ]; then
+            echo "No versions found or the path does not exist."
+          else
             IMAGES_TO_DELETE=$(echo "$RESPONSE" | jq -r '.[] | select(.metadata.container.tags[] | contains("'${{ env.PR_NUMBER }}'")) | .id')
             if [[ -n "$IMAGES_TO_DELETE" ]]; then
               for image_id in $IMAGES_TO_DELETE; do
@@ -98,8 +100,6 @@ jobs:
             else
               echo "No images found with PR tag."
             fi
-          else
-            echo "No versions found or the path does not exist."
           fi
 
       - name: Login to GitHub Container Registry
