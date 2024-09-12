@@ -14,8 +14,8 @@ jobs:
       # fail-fast: false
       matrix:
         docker_image:
-          - [node, calico-forked]
-          - [cni-plugin, calico-cni-plugin-forked]
+          - [node, node, calico-forked]
+          - [cni-plugin, cni, calico-cni-plugin-forked]
 
     env:
       TARGETARCH: arm64
@@ -32,7 +32,7 @@ jobs:
           PR_NUMBER="pr-${{ github.event.number }}"
           echo "ARTIFACT_VERSION=${CURRENT_DATE}.${PR_NUMBER}.${GIT_COMMIT_HASH_SHORT}" >> $GITHUB_ENV
           echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
-          echo "IMAGE_NAME=ghcr.io/${REPO%/*}/${REPO#*/}/${{ matrix.docker_image[1] }}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=ghcr.io/${REPO%/*}/${{ matrix.docker_image[2] }}" >> $GITHUB_ENV
           echo "REPO_OWNER=${REPO%/*}" >> $GITHUB_ENV
           echo "REPO_NAME=${REPO#*/}" >> $GITHUB_ENV
 
@@ -48,11 +48,10 @@ jobs:
       - name: Build Docker image
         run: |
           make -C ${{ matrix.docker_image[0] }} image ARCH=${{ env.TARGETARCH }}
-          docker image ls
 
       - name: Tag Docker image
         run: |
-          docker tag cni:latest-arm64 ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
+          docker tag ${{ matrix.docker_image[1] }}:latest-${{ env.TARGETARCH }} ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
 
       - name: Security Scan
         id: trivy-scan
@@ -88,13 +87,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSIONS_PATH="/orgs/${{ env.REPO_OWNER }}/packages/container/${{ env.REPO_NAME }}%2F${{ matrix.docker_image[1] }}/versions"
-          IMAGES_TO_DELETE=$(gh api --method GET -H "Accept: application/vnd.github.v3+json" $VERSIONS_PATH | jq -r '.[] | select(.metadata.container.tags[] | contains("'${{ env.PR_NUMBER }}'")) | .id')
-          for image_id in $IMAGES_TO_DELETE; do
-            gh api --method DELETE -H "Accept: application/vnd.github.v3+json" ${VERSIONS_PATH}/${image_id}
-          done
-
-          VERSIONS_PATH="/orgs/${{ env.REPO_OWNER }}/packages/container/${{ env.REPO_NAME }}%2F${{ matrix.docker_image[1] }}/versions"
+          VERSIONS_PATH="/orgs/${{ env.REPO_OWNER }}/packages/container/${{ matrix.docker_image[2] }}/versions"
           RESPONSE=$(gh api --method GET -H "Accept: application/vnd.github.v3+json" $VERSIONS_PATH || echo "not_found")
           if [[ "$RESPONSE" != "not_found" && -n "$RESPONSE" ]]; then
             IMAGES_TO_DELETE=$(echo "$RESPONSE" | jq -r '.[] | select(.metadata.container.tags[] | contains("'${{ env.PR_NUMBER }}'")) | .id')
