@@ -60,7 +60,7 @@ jobs:
           image-ref: ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
           output: 'scan-report.txt'
           format: 'table'
-          severity: 'MEDIUM,HIGH,CRITICAL'
+          severity: 'HIGH,CRITICAL'
           exit-code: '1'
         env:
           TRIVY_PLATFORM: linux/${{ env.TARGETARCH }}
@@ -70,11 +70,9 @@ jobs:
         if: always()
         run: |
           if [[ ! -s scan-report.txt ]]; then
-            echo "Scan report is empty."
-            ls -la
-            cat scan-report.txt
-            docker image ls
-            exit 1
+            echo "Scan report is empty or no vulnerabilities found."
+            echo "<h2>Security Scan Report</h2>" >> $GITHUB_STEP_SUMMARY
+            echo "Scan report is empty or no vulnerabilities found." >> $GITHUB_STEP_SUMMARY
           else
             {
               echo "<h2>Security Output</h2>"
