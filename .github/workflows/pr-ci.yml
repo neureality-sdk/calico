@@ -73,6 +73,7 @@ jobs:
             echo "Scan report is empty."
             ls -la
             cat scan-report.txt
+            docker image ls
             exit 1
           else
             {
