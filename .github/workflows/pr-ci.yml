@@ -63,11 +63,17 @@ jobs:
           exit-code: '1'
         env:
           TRIVY_PLATFORM: linux/${{ env.TARGETARCH }}
+          TRIVY_LOG_LEVEL: DEBUG
 
       - name: Publish Trivy Output to Summary
         if: always()
         run: |
-          if [[ -s scan-report.txt ]]; then
+          if [[ ! -s scan-report.txt ]]; then
+            echo "Scan report is empty."
+            ls -la
+            cat scan-report.txt
+            exit 1
+          else
             {
               echo "<h2>Security Output</h2>"
               if [[ "${{ steps.trivy-scan.outcome }}" != "success" ]]; then
