@@ -8,7 +8,7 @@ on:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
 
     strategy:
       # fail-fast: false
@@ -81,12 +81,20 @@ jobs:
               echo '```'
               echo "</details>"
             } >> $GITHUB_STEP_SUMMARY
-          else
-            echo "The scan report isn't found"
-            ls -la
           fi
 
-      - name: Delete existing image with PR tag
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
+
+      - name: Delete old existing images with PR tag except for the latest one
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -103,27 +111,16 @@ jobs:
           VERSION_COUNT=$(echo "$RESPONSE" | jq '. | length')
 
           if [ "$VERSION_COUNT" -le 1 ]; then
-            echo "Package contains only one version. Skipping deletion to avoid removing the last version."
+            echo "Package contains only one version. Skipping deletion."
             exit 0
           fi
 
-          IMAGES_TO_DELETE=$(echo "$RESPONSE" | jq -r '.[] | select(.metadata.container.tags[] | contains("'${{ env.PR_NUMBER }}'")) | .id')
+          IMAGES_TO_DELETE=$(echo "$RESPONSE" | jq -r '.[] | select(.metadata.container.tags[] | contains("'${{ env.PR_NUMBER }}'") and .metadata.container.tags[] != "'${{ env.ARTIFACT_VERSION }}'") | .id')
 
           if [[ -n "$IMAGES_TO_DELETE" ]]; then
             for image_id in $IMAGES_TO_DELETE; do
               gh api --method DELETE -H "Accept: application/vnd.github.v3+json" ${VERSIONS_PATH}/${image_id}
             done
           else
-            echo "No images found with PR tag."
+            echo "No older images found with PR tag."
           fi
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push Docker image
-        run: |
-          docker push ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
