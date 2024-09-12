@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 40
 
     strategy:
-      fail-fast: false
+      # fail-fast: false
       matrix:
         docker_image:
           - [node, calico-forked]
@@ -47,7 +47,12 @@ jobs:
 
       - name: Build Docker image
         run: |
-          make -C ${{ matrix.docker_image[0] }} image ARCH=${{ env.TARGETARCH }} IMAGETAG=${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
+          make -C ${{ matrix.docker_image[0] }} image ARCH=${{ env.TARGETARCH }}
+          docker image ls
+
+      - name: Tag Docker image
+        run: |
+          docker tag cni:latest-arm64 ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
 
       - name: Security Scan
         id: trivy-scan
