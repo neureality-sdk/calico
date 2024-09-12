@@ -81,6 +81,9 @@ jobs:
               echo '```'
               echo "</details>"
             } >> $GITHUB_STEP_SUMMARY
+          else
+            echo "The scan report isn't found"
+            ls -la
           fi
 
       - name: Delete existing image with PR tag
@@ -88,13 +91,24 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
+
           VERSIONS_PATH="/orgs/${{ env.REPO_OWNER }}/packages/container/${{ matrix.docker_image[2] }}/versions"
           RESPONSE=$(gh api --method GET -H "Accept: application/vnd.github.v3+json" $VERSIONS_PATH 2>/dev/null)
+
           if [ $? -ne 0 ] || [ -z "$RESPONSE" ]; then
             echo "Package not found. Skipping deletion."
             exit 0
           fi
+
+          VERSION_COUNT=$(echo "$RESPONSE" | jq '. | length')
+
+          if [ "$VERSION_COUNT" -le 1 ]; then
+            echo "Package contains only one version. Skipping deletion to avoid removing the last version."
+            exit 0
+          fi
+
           IMAGES_TO_DELETE=$(echo "$RESPONSE" | jq -r '.[] | select(.metadata.container.tags[] | contains("'${{ env.PR_NUMBER }}'")) | .id')
+
           if [[ -n "$IMAGES_TO_DELETE" ]]; then
             for image_id in $IMAGES_TO_DELETE; do
               gh api --method DELETE -H "Accept: application/vnd.github.v3+json" ${VERSIONS_PATH}/${image_id}
