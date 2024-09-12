@@ -60,7 +60,7 @@ jobs:
           image-ref: ${{ env.IMAGE_NAME }}:${{ env.ARTIFACT_VERSION }}
           output: 'scan-report.txt'
           format: 'table'
-          severity: 'HIGH,CRITICAL'
+          severity: 'MEDIUM,HIGH,CRITICAL'
           exit-code: '1'
         env:
           TRIVY_PLATFORM: linux/${{ env.TARGETARCH }}
