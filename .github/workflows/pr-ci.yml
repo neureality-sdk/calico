@@ -47,7 +47,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          make -C ${{ matrix.docker_image[0] }} image ARCH=${{ env.TARGETARCH }}
+          make -C ${{ matrix.docker_image[0] }} -j$(nproc) image ARCH=${{ env.TARGETARCH }}
 
       - name: Tag Docker image
         run: |
@@ -69,21 +69,29 @@ jobs:
       - name: Publish Trivy Output to Summary
         if: always()
         run: |
-          if [[ ! -s scan-report.txt ]]; then
-            echo "Scan report is empty or no vulnerabilities found."
-            echo "<h2>Security Scan Report</h2>" >> $GITHUB_STEP_SUMMARY
-            echo "Scan report is empty or no vulnerabilities found." >> $GITHUB_STEP_SUMMARY
-          else
+          scan_report="scan-report.txt"
+          report_header="<h2>Security Scan Report</h2>"
+          
+          if [[ ! -s $scan_report ]]; then
             {
-              echo "<h2>Security Output</h2>"
-              if [[ "${{ steps.trivy-scan.outcome }}" != "success" ]]; then
-                echo "<details><summary>:x: <strong>Issues found.</strong> Click to expand...</summary>"
-              else
-                echo "<details><summary>:information_source: Click to expand...</summary>"
-              fi
-              echo ""
+              echo "$report_header"
+              echo "<details><summary>:information_source: Click to expand...</summary>"
               echo '```'
-              cat scan-report.txt
+              echo "Scan report is empty or no vulnerabilities found."
+              echo '```'
+              echo "</details>"
+            } >> $GITHUB_STEP_SUMMARY
+          else
+            outcome_icon=":information_source:"
+            if [[ "${{ steps.trivy-scan.outcome }}" != "success" ]]; then
+              outcome_icon=":x: <strong>Issues found.</strong>"
+            fi
+
+            {
+              echo "$report_header"
+              echo "<details><summary>$outcome_icon Click to expand...</summary>"
+              echo '```'
+              cat $scan_report
               echo '```'
               echo "</details>"
             } >> $GITHUB_STEP_SUMMARY
