@@ -72,9 +72,6 @@ jobs:
           scan_report="scan-report.txt"
           outcome_icon=":information_source:"
 
-          if [[ ! -s $scan_report ]]; then
-            echo "Scan report is empty or no vulnerabilities found." >> $scan_report
-          fi
           if [[ "${{ steps.trivy-scan.outcome }}" != "success" ]]; then
             outcome_icon=":x: <strong>Issues found.</strong>"
           fi
@@ -83,7 +80,11 @@ jobs:
             echo "<h2>Security Scan Report</h2>"
             echo "<details><summary>$outcome_icon Click to expand...</summary>"
             echo '```'
-            cat $scan_report
+            if [[ ! -s $scan_report ]]; then
+              echo "Scan report is empty or no vulnerabilities found."
+            else
+              cat $scan_report
+            fi
             echo '```'
             echo "</details>"
           } >> $GITHUB_STEP_SUMMARY
