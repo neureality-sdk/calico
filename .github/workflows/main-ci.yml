@@ -1,13 +1,7 @@
 name: Push to Branch CI
 
-# on:
-#   push:
-#     branches:
-#       - add_secondary_dataplane_driver
-#       - v3.28.1_add_secondary_dataplane_driver
-
 on:
-  pull_request:
+  push:
     branches:
       - add_secondary_dataplane_driver
       - v3.28.1_add_secondary_dataplane_driver
@@ -18,7 +12,7 @@ jobs:
     timeout-minutes: 60
 
     strategy:
-      # fail-fast: false
+      fail-fast: false
       matrix:
         docker_image:
           - [node, node, calico-forked]
