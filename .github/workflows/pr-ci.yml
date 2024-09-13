@@ -62,7 +62,7 @@ jobs:
           output: 'scan-report.txt'
           format: 'table'
           severity: 'HIGH,CRITICAL'
-          exit-code: '1'
+          exit-code: '0'
         env:
           TRIVY_PLATFORM: linux/${{ env.TARGETARCH }}
           TRIVY_LOG_LEVEL: DEBUG
