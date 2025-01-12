@@ -1,5 +1,5 @@
 // Copyright © 2024 NeuReality Ltd., and its licensors. All rights reserved.
-// his software contains proprietary information of NeuReality Ltd.
+// This software contains proprietary information of NeuReality Ltd.
 // You shall use such proprietary information only as may be permitted in writing by NeuReality Ltd.
 // All materials contained herein are the property of NeuReality Ltd.
 
@@ -30,5 +30,3 @@ func (decorator dataplaneDriverDecorator) SendMessage(msg interface{}) error {
 func (decorator dataplaneDriverDecorator) RecvMessage() (msg interface{}, err error) {
      return decorator.primaryDriver.RecvMessage() // receive message from the primary driver only
 }
-
-	
